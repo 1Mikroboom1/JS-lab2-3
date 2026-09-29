@@ -1,0 +1,576 @@
+{
+  "info": {
+    "name": "Case 2 — Equipment Maintenance API",
+    "description": "Обязательная часть кейса 2. Коллекция покрывает все обязательные endpoint'ы и негативные сценарии.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "equipmentId",
+      "value": ""
+    },
+    {
+      "key": "requestId",
+      "value": ""
+    },
+    {
+      "key": "serialNumber",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('data structure',()=>pm.expect(pm.response.json().data).to.have.property('status','ok'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Equipment",
+      "item": [
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/equipment",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Test Turbine\",\"type\":\"turbine\",\"serialNumber\":\"{{serialNumber}}\",\"location\":{\"lat\":56.3269,\"lon\":44.0059},\"status\":\"operational\",\"installedAt\":\"2024-01-01T00:00:00.000Z\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('serialNumber','TEST-'+Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201',()=>pm.response.to.have.status(201));",
+                  "pm.test('data structure',()=>pm.expect(pm.response.json().data).to.have.property('id'));",
+                  "pm.test('Location header',()=>pm.expect(pm.response.headers.has('Location')).to.be.true);",
+                  "pm.environment.set('equipmentId',pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET list with filter/sort/pagination",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/equipment?status=operational&type=turbine&page=1&limit=10&sort=name&order=asc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('data/meta structure',()=>{const b=pm.response.json();pm.expect(b.data).to.be.an('array');pm.expect(b.meta).to.have.all.keys('total','page','limit');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/equipment/{{equipmentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('data has id',()=>pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('equipmentId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/equipment/{{equipmentId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"maintenance\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('status changed',()=>pm.expect(pm.response.json().data.status).to.eql('maintenance'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET nested requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/equipment/{{equipmentId}}/requests?page=1&limit=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('data/meta structure',()=>{const b=pm.response.json();pm.expect(b.data).to.be.an('array');pm.expect(b.meta).to.have.all.keys('total','page','limit');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET weather",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/equipment/{{equipmentId}}/weather"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 or 503',()=>pm.expect([200,503]).to.include(pm.response.code));",
+                  "pm.test('error or weather structure',()=>{const b=pm.response.json();if(pm.response.code===200)pm.expect(b.data).to.have.property('suitableForOutdoorWork');else pm.expect(b.error).to.have.property('requestId');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST duplicate serial 409",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/equipment",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Duplicate\",\"type\":\"sensor\",\"serialNumber\":\"{{serialNumber}}\",\"location\":{\"lat\":56,\"lon\":44},\"status\":\"operational\",\"installedAt\":\"2024-01-01T00:00:00.000Z\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409',()=>pm.response.to.have.status(409));",
+                  "pm.test('error structure',()=>pm.expect(pm.response.json().error).to.have.all.keys('code','message','details','requestId'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Requests",
+      "item": [
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/requests",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"equipmentId\":\"{{equipmentId}}\",\"title\":\"Проверка лопастей\",\"description\":\"Плановая проверка\",\"priority\":\"high\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201',()=>pm.response.to.have.status(201));",
+                  "pm.test('data structure',()=>pm.expect(pm.response.json().data).to.have.property('id'));",
+                  "pm.environment.set('requestId',pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET list with filters",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/requests?status=new&priority=high&equipmentId={{equipmentId}}&page=1&limit=10&sort=createdAt&order=desc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('data/meta structure',()=>{const b=pm.response.json();pm.expect(b.data).to.be.an('array');pm.expect(b.meta).to.have.all.keys('total','page','limit');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/requests/{{requestId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('data has id',()=>pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('requestId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH request",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/requests/{{requestId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"description\":\"Обновлено\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "pm.test('description changed',()=>pm.expect(pm.response.json().data.description).to.eql('Обновлено'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH status to in_progress",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/requests/{{requestId}}/status",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"in_progress\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH status to done",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/requests/{{requestId}}/status",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"done\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST unknown equipment 404",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/requests",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"equipmentId\":\"00000000-0000-4000-8000-000000000000\",\"title\":\"Тестовая заявка\",\"priority\":\"low\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404',()=>pm.response.to.have.status(404));",
+                  "pm.test('error structure',()=>pm.expect(pm.response.json().error).to.have.property('requestId'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE request",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/requests/{{requestId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204',()=>pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE equipment",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/equipment/{{equipmentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204',()=>pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Negative",
+      "item": [
+        {
+          "name": "Unknown route 404",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/not-found"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404',()=>pm.response.to.have.status(404));",
+                  "pm.test('error structure',()=>pm.expect(pm.response.json().error).to.have.all.keys('code','message','details','requestId')); "
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid body 422",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/equipment",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"x\",\"type\":\"wrong\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422',()=>pm.response.to.have.status(422));",
+                  "pm.test('details',()=>pm.expect(pm.response.json().error.details).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid JSON 400",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/equipment",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Broken\","
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400',()=>pm.response.to.have.status(400));",
+                  "pm.test('invalid json error',()=>pm.expect(pm.response.json().error.code).to.eql('INVALID_JSON'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid path id 422",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/equipment/not-a-uuid"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422',()=>pm.response.to.have.status(422));",
+                  "pm.test('validation error',()=>pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR')); "
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid sort 422",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/equipment?sort=unknown"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422',()=>pm.response.to.have.status(422));",
+                  "pm.test('validation error',()=>pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR')); "
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rate limit 429",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/health"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Для детерминированной проверки запустите сервер с RATE_LIMIT_MAX=5.\nfor(let i=0;i<6;i++){pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/health'),method:'GET'},()=>{});}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('429',()=>pm.response.to.have.status(429));",
+                  "pm.test('rate-limit headers',()=>pm.expect(pm.response.headers.has('RateLimit-Limit') || pm.response.headers.has('X-RateLimit-Limit')).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
