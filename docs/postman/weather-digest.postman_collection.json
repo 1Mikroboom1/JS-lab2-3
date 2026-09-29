@@ -1,0 +1,220 @@
+{
+  "info": {
+    "name": "Weather Digest — Open-Meteo",
+    "_postman_id": "weather-digest-case-1",
+    "description": "Коллекция для проверки геокодинга и прогноза Open-Meteo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "geocodingBaseUrl",
+      "value": "https://geocoding-api.open-meteo.com/v1/search"
+    },
+    {
+      "key": "forecastBaseUrl",
+      "value": "https://api.open-meteo.com/v1/forecast"
+    },
+    {
+      "key": "city",
+      "value": "Нижний Новгород"
+    },
+    {
+      "key": "lat",
+      "value": "56.3269"
+    },
+    {
+      "key": "lon",
+      "value": "44.0059"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Геокодинг — успешный",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{geocodingBaseUrl}}?name={{city}}&count=1&language=ru&format=json",
+          "host": [
+            "{{geocodingBaseUrl}}"
+          ],
+          "query": [
+            {
+              "key": "name",
+              "value": "{{city}}"
+            },
+            {
+              "key": "count",
+              "value": "1"
+            },
+            {
+              "key": "language",
+              "value": "ru"
+            },
+            {
+              "key": "format",
+              "value": "json"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Успешный ответ",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\"results\":[{\"name\":\"Нижний Новгород\",\"latitude\":56.3269,\"longitude\":44.0059,\"country\":\"Россия\"}]}"
+        }
+      ]
+    },
+    {
+      "name": "2. Геокодинг — город не найден",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{geocodingBaseUrl}}?name=city-that-does-not-exist-987654&count=1&language=ru&format=json",
+          "host": [
+            "{{geocodingBaseUrl}}"
+          ],
+          "query": [
+            {
+              "key": "name",
+              "value": "city-that-does-not-exist-987654"
+            },
+            {
+              "key": "count",
+              "value": "1"
+            },
+            {
+              "key": "language",
+              "value": "ru"
+            },
+            {
+              "key": "format",
+              "value": "json"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Пустой результат",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\"results\":[]}"
+        }
+      ]
+    },
+    {
+      "name": "3. Прогноз — успешный",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{forecastBaseUrl}}?latitude={{lat}}&longitude={{lon}}&daily=temperature_2m_max%2Ctemperature_2m_min%2Cprecipitation_sum&forecast_days=3&timezone=auto",
+          "host": [
+            "{{forecastBaseUrl}}"
+          ],
+          "query": [
+            {
+              "key": "latitude",
+              "value": "{{lat}}"
+            },
+            {
+              "key": "longitude",
+              "value": "{{lon}}"
+            },
+            {
+              "key": "daily",
+              "value": "temperature_2m_max,temperature_2m_min,precipitation_sum"
+            },
+            {
+              "key": "forecast_days",
+              "value": "3"
+            },
+            {
+              "key": "timezone",
+              "value": "auto"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Успешный ответ",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\"daily\":{\"time\":[\"2026-09-13\",\"2026-09-14\",\"2026-09-15\"],\"temperature_2m_min\":[8.1,7.4,9.2],\"temperature_2m_max\":[14.7,15.3,17.0],\"precipitation_sum\":[0.0,1.2,0.4]}}"
+        }
+      ]
+    },
+    {
+      "name": "4. Прогноз — ошибка 4xx",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{forecastBaseUrl}}?latitude=999&longitude={{lon}}&daily=temperature_2m_max&forecast_days=3&timezone=auto",
+          "host": [
+            "{{forecastBaseUrl}}"
+          ],
+          "query": [
+            {
+              "key": "latitude",
+              "value": "999"
+            },
+            {
+              "key": "longitude",
+              "value": "{{lon}}"
+            },
+            {
+              "key": "daily",
+              "value": "temperature_2m_max"
+            },
+            {
+              "key": "forecast_days",
+              "value": "3"
+            },
+            {
+              "key": "timezone",
+              "value": "auto"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Пример клиентской ошибки",
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "body": "{\"error\":true,\"reason\":\"Некорректные параметры запроса\"}"
+        }
+      ]
+    }
+  ]
+}
